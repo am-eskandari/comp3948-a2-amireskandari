@@ -28,7 +28,6 @@ imputer = SimpleImputer(strategy='median')
 dataset[['AccountAge', 'ViewingHoursPerWeek', 'AverageViewingDuration']] = imputer.fit_transform(
     dataset[['AccountAge', 'ViewingHoursPerWeek', 'AverageViewingDuration']])
 
-# Separate into x and y values.
 predictorVariables = [
     'AccountAge', 'MonthlyCharges', 'TotalCharges', 'ViewingHoursPerWeek',
     'AverageViewingDuration', 'ContentDownloadsPerMonth', 'UserRating',
@@ -41,6 +40,80 @@ predictorVariables = [
     'GenrePreference_Fantasy', 'GenrePreference_Sci-Fi', 'Gender_Male',
     'ParentalControl_Yes', 'SubtitlesEnabled_Yes'
 ]
+
+
+# Binning function
+def bin_variable(data, variable, bins, labels):
+    binned_col_name = f'{variable}_Bin'
+    data[binned_col_name] = pd.cut(data[variable], bins=bins, labels=labels, include_lowest=True)
+    print(f"Binned {variable}, new column: {binned_col_name}")  # Debugging print
+    return binned_col_name
+
+
+
+# Binning variables and adding them to the dataset
+binned_columns = []
+for variable, bins, labels in [
+    ('AccountAge', [0, 40, 80, 120], ['Young', 'Middle-aged', 'Senior']),
+    ('MonthlyCharges', [0, 10, 20], ['Low', 'High']),
+    ('TotalCharges', [0, 1000, 2000, 3000], ['Low', 'Medium', 'High']),
+    ('ViewingHoursPerWeek', [0, 15, 30, 45], ['Low', 'Medium', 'High']),
+    ('AverageViewingDuration', [0, 60, 120, 180], ['Short', 'Medium', 'Long']),
+    ('ContentDownloadsPerMonth', [0, 25, 50], ['Few', 'Many']),
+    ('UserRating', [1, 2.5, 4, 5], ['Low', 'Medium', 'High'])
+]:
+    binned_col_name = bin_variable(dataset, variable, bins, labels)
+    binned_columns.append(binned_col_name)
+
+# Update predictor variables to include original and binned variables
+predictorVariables += binned_columns
+
+# Remove original binned column names
+for col in binned_columns:
+    predictorVariables.remove(col)
+
+# Debugging print to check DataFrame after binning
+print("DataFrame after binning:")
+print(dataset.head())
+
+
+# Convert binned columns to dummy variables
+dataset = pd.get_dummies(dataset, columns=binned_columns, drop_first=True)
+
+# Add the new dummy variable names (generated from binned columns) to the predictorVariables list
+new_binned_dummy_cols = [col for col in dataset.columns if col.endswith("_High") or col.endswith("_Medium") or col.endswith("_Long") or col.endswith("_Many") or col.endswith("_Senior") or col.endswith("_Middle-aged")]
+predictorVariables.extend(new_binned_dummy_cols)
+
+
+# Update the predictorVariables list
+# predictorVariables.remove('AccountAge_Bin')
+# predictorVariables.remove('MonthlyCharges_Bin')
+# predictorVariables.remove('TotalCharges_Bin')
+# predictorVariables.remove('ViewingHoursPerWeek_Bin')
+# predictorVariables.remove('AverageViewingDuration_Bin')
+# predictorVariables.remove('ContentDownloadsPerMonth_Bin')
+# predictorVariables.remove('UserRating_Bin')
+
+predictorVariables.extend([
+    'AccountAge_Bin_Middle-aged', 'AccountAge_Bin_Senior',
+    'MonthlyCharges_Bin_High', 'TotalCharges_Bin_Medium', 'TotalCharges_Bin_High',
+    'ViewingHoursPerWeek_Bin_Medium', 'ViewingHoursPerWeek_Bin_High',
+    'AverageViewingDuration_Bin_Medium', 'AverageViewingDuration_Bin_Long',
+    'ContentDownloadsPerMonth_Bin_Many', 'UserRating_Bin_Medium', 'UserRating_Bin_High'
+])
+
+# ... [Rest of your code] ...
+
+
+# Print the new column names after get_dummies
+print("New column names after get_dummies:")
+print(dataset.columns)
+
+
+# Debugging print to check DataFrame after get_dummies
+print("DataFrame after get_dummies:")
+print(dataset.head())
+
 X = dataset[predictorVariables]
 y = dataset['Churn']
 
@@ -55,7 +128,7 @@ X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.25,
 # Logistic Regression Model
 logistic_model = LogisticRegression(solver='liblinear', random_state=0)
 
-# CROSS-VALIDATION WITH SMOTE =========================================================================================
+# CROSS-VALIDATION WITH SMOTE ==========================================================================================
 # Define cross-validation
 kf = StratifiedKFold(n_splits=5, shuffle=True, random_state=0)
 
@@ -99,7 +172,6 @@ print(f'Standard deviation of recall across all folds: {recalls.std():.4f}')
 print(f'Average F1 score across all folds: {f1_scores.mean():.4f}')
 print(f'Standard deviation of F1 score across all folds: {f1_scores.std():.4f}')
 
-
 # FINAL MODEL EVALUATION ===============================================================================================
 # Train final model on the entire training set with SMOTE
 X_train_resampled, y_train_resampled = smote.fit_resample(X_train, y_train)
@@ -116,3 +188,9 @@ print(f'\nAccuracy: {accuracy_score(y_test, y_pred):.4f}')
 print(f'Precision: {precision_score(y_test, y_pred, zero_division=0):.4f}')
 print(f'Recall: {recall_score(y_test, y_pred, zero_division=0):.4f}')
 print(f'F1 Score: {f1_score(y_test, y_pred, zero_division=0):.4f}')
+
+# pd.set_option('display.max_columns', None)
+# # Increase number of columns that display on one line.
+# pd.set_option('display.width', 1000)
+# print(dataset.head())
+# print(dataset.describe(include='all'))

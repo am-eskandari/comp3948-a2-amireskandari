@@ -1,10 +1,6 @@
 import pandas as pd
-from sklearn.feature_selection import RFE
-from sklearn.impute import SimpleImputer
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LogisticRegression
-
 from modules.path import PATH, CSV_DATA
+from sklearn.impute import SimpleImputer
 
 # from modules.chi_squares import chi_squares
 
@@ -49,8 +45,8 @@ dataset['AverageViewingDuration'] = imputer.fit_transform(dataset[['AverageViewi
 pd.set_option('display.max_columns', None)
 # Increase number of columns that display on one line.
 pd.set_option('display.width', 1000)
-# print(dataset.head())
-# print(dataset.describe(include='all'))
+print(dataset.head())
+print(dataset.describe(include='all'))
 # ======================================================================================================================
 
 # FEATURE SELECTION =============================================================================
@@ -87,29 +83,3 @@ predictorVariables = [
 ]
 X = dataset[predictorVariables]
 y = dataset['Churn']
-
-# chi_squares(X, y, predictorVariables)
-
-# Create the object of the model
-model = LogisticRegression()
-# Specify the number of features to select
-rfe = RFE(model, n_features_to_select='all')
-# fit the model
-rfe = rfe.fit(X, y)
-# ======================================================================================================================
-
-
-# LOGISTIC REGRESSION ==================================================================================================
-# Re-assign X with significant columns only after chi-square test.
-# X = df[['gmat', 'work_experience']]
-
-# Split data.
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25,
-                                                    random_state=0)
-# Build logistic regression model and make predictions.
-logisticModel = LogisticRegression(fit_intercept=True, solver='liblinear',
-                                   random_state=0)
-logisticModel.fit(X_train, y_train)
-y_pred = logisticModel.predict(X_test)
-print(y_pred)
-# ======================================================================================================================
