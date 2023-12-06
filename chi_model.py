@@ -20,31 +20,6 @@ pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 1000)
 print(dataset.describe())
 
-# Creating boxplots to detect outliers
-plt.figure(figsize=(15, 8))
-continuous_vars = ['AccountAge', 'MonthlyCharges',
-                   'TotalCharges',
-                   'ViewingHoursPerWeek', 'AverageViewingDuration',
-                   'ContentDownloadsPerMonth', 'UserRating', 'SupportTicketsPerMonth', 'WatchlistSize']
-# Set up the matplotlib figure and axes
-fig, axes = plt.subplots(nrows=3, ncols=3, figsize=(15, 12))  # Adjust the grid size based on the number of variables
-axes = axes.flatten()  # Flatten the axes array for easy iteration
-
-# Creating individual boxplots for each continuous variable
-for i, col in enumerate(continuous_vars):
-    axes[i].boxplot(dataset[col].dropna())  # Drop NA values to avoid errors
-    axes[i].set_title(col)
-    axes[i].set_xticks([1])  # Set the x-ticks to show the variable name
-    axes[i].set_xticklabels([col], rotation=45)
-
-# Hide any unused axes if there are fewer variables than subplots
-for j in range(i + 1, len(axes)):
-    axes[j].set_visible(False)
-
-plt.tight_layout()  # Adjust the layout so labels don't overlap
-plt.show()
-
-
 # Creating dummy variables
 categorical_vars = ['SubscriptionType', 'PaymentMethod', 'PaperlessBilling', 'ContentType',
                     'MultiDeviceAccess', 'DeviceRegistered', 'GenrePreference', 'Gender',
@@ -65,14 +40,6 @@ dataset[['AccountAge', 'ViewingHoursPerWeek', 'AverageViewingDuration']] = imput
 # Clip 'TotalCharges' to the upper boundary.
 dfAdjusted = dataset['TotalCharges'].clip(upper=2250)
 dataset['TotalCharges'] = dfAdjusted
-
-plt.figure(figsize=(8, 6))  # Set the figure size
-plt.boxplot(dataset['TotalCharges'].dropna())  # Create the boxplot, dropping NA values
-plt.title('Boxplot of Total Charges')  # Set the title
-plt.ylabel('Total Charges')  # Set the y-axis label
-plt.xticks([1], ['Total Charges'])  # Set the x-axis label
-plt.show()
-
 
 # Binning function
 def bin_variable(data, variable, bins, labels):
@@ -121,11 +88,10 @@ y = dataset['Churn']
 scaler = MinMaxScaler()
 X_scaled = scaler.fit_transform(X)
 
-# Feature Selection (Chi-Square, Best k) Here
-# k = best_k(X_scaled, y)
-# print(f"Best k value: {k}")
+# FEATURE SELECTION ====================================================================================================
 k = 25
 selected_features = chi_squares(X, X_scaled, y, k)
+
 print(f"Selected features: {selected_features}")
 
 # Split the data into train and test sets
