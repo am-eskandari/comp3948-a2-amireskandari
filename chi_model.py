@@ -1,5 +1,8 @@
 import numpy as np
 import pandas as pd
+from matplotlib import pyplot as plt
+from modules.best_k import best_k
+from modules.chi_squares import chi_squares
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split, StratifiedKFold
@@ -11,6 +14,36 @@ from modules.path import PATH, CSV_DATA
 # DATA PROCESSING ======================================================================================================
 # Reading the dataset
 dataset = pd.read_csv(PATH + CSV_DATA)
+
+# Show header and first 5 rows
+pd.set_option('display.max_columns', None)
+pd.set_option('display.width', 1000)
+print(dataset.describe())
+
+# Creating boxplots to detect outliers
+plt.figure(figsize=(15, 8))
+continuous_vars = ['AccountAge', 'MonthlyCharges',
+                   'TotalCharges',
+                   'ViewingHoursPerWeek', 'AverageViewingDuration',
+                   'ContentDownloadsPerMonth', 'UserRating', 'SupportTicketsPerMonth', 'WatchlistSize']
+# Set up the matplotlib figure and axes
+fig, axes = plt.subplots(nrows=3, ncols=3, figsize=(15, 12))  # Adjust the grid size based on the number of variables
+axes = axes.flatten()  # Flatten the axes array for easy iteration
+
+# Creating individual boxplots for each continuous variable
+for i, col in enumerate(continuous_vars):
+    axes[i].boxplot(dataset[col].dropna())  # Drop NA values to avoid errors
+    axes[i].set_title(col)
+    axes[i].set_xticks([1])  # Set the x-ticks to show the variable name
+    axes[i].set_xticklabels([col], rotation=45)
+
+# Hide any unused axes if there are fewer variables than subplots
+for j in range(i + 1, len(axes)):
+    axes[j].set_visible(False)
+
+plt.tight_layout()  # Adjust the layout so labels don't overlap
+plt.show()
+
 
 # Creating dummy variables
 categorical_vars = ['SubscriptionType', 'PaymentMethod', 'PaperlessBilling', 'ContentType',
@@ -28,18 +61,17 @@ imputer = SimpleImputer(strategy='median')
 dataset[['AccountAge', 'ViewingHoursPerWeek', 'AverageViewingDuration']] = imputer.fit_transform(
     dataset[['AccountAge', 'ViewingHoursPerWeek', 'AverageViewingDuration']])
 
-predictorVariables = [
-    'AccountAge', 'MonthlyCharges', 'TotalCharges', 'ViewingHoursPerWeek',
-    'AverageViewingDuration', 'ContentDownloadsPerMonth', 'UserRating',
-    'SupportTicketsPerMonth', 'WatchlistSize', 'SubscriptionType_Premium',
-    'SubscriptionType_Standard', 'PaymentMethod_Credit card',
-    'PaymentMethod_Electronic check', 'PaymentMethod_Mailed check',
-    'PaperlessBilling_Yes', 'ContentType_Movies', 'ContentType_TV Shows',
-    'MultiDeviceAccess_Yes', 'DeviceRegistered_Mobile', 'DeviceRegistered_TV',
-    'DeviceRegistered_Tablet', 'GenrePreference_Comedy', 'GenrePreference_Drama',
-    'GenrePreference_Fantasy', 'GenrePreference_Sci-Fi', 'Gender_Male',
-    'ParentalControl_Yes', 'SubtitlesEnabled_Yes'
-]
+
+# Clip 'TotalCharges' to the upper boundary.
+dfAdjusted = dataset['TotalCharges'].clip(upper=2250)
+dataset['TotalCharges'] = dfAdjusted
+
+plt.figure(figsize=(8, 6))  # Set the figure size
+plt.boxplot(dataset['TotalCharges'].dropna())  # Create the boxplot, dropping NA values
+plt.title('Boxplot of Total Charges')  # Set the title
+plt.ylabel('Total Charges')  # Set the y-axis label
+plt.xticks([1], ['Total Charges'])  # Set the x-axis label
+plt.show()
 
 
 # Binning function
@@ -50,69 +82,37 @@ def bin_variable(data, variable, bins, labels):
     return binned_col_name
 
 
-
 # Binning variables and adding them to the dataset
 binned_columns = []
 for variable, bins, labels in [
     ('AccountAge', [0, 40, 80, 120], ['Young', 'Middle-aged', 'Senior']),
-    ('MonthlyCharges', [0, 10, 20], ['Low', 'High']),
     ('TotalCharges', [0, 1000, 2000, 3000], ['Low', 'Medium', 'High']),
     ('ViewingHoursPerWeek', [0, 15, 30, 45], ['Low', 'Medium', 'High']),
-    ('AverageViewingDuration', [0, 60, 120, 180], ['Short', 'Medium', 'Long']),
-    ('ContentDownloadsPerMonth', [0, 25, 50], ['Few', 'Many']),
-    ('UserRating', [1, 2.5, 4, 5], ['Low', 'Medium', 'High'])
 ]:
     binned_col_name = bin_variable(dataset, variable, bins, labels)
     binned_columns.append(binned_col_name)
-
-# Update predictor variables to include original and binned variables
-predictorVariables += binned_columns
-
-# Remove original binned column names
-for col in binned_columns:
-    predictorVariables.remove(col)
-
-# Debugging print to check DataFrame after binning
-print("DataFrame after binning:")
-print(dataset.head())
-
 
 # Convert binned columns to dummy variables
 dataset = pd.get_dummies(dataset, columns=binned_columns, drop_first=True)
 
 # Add the new dummy variable names (generated from binned columns) to the predictorVariables list
-new_binned_dummy_cols = [col for col in dataset.columns if col.endswith("_High") or col.endswith("_Medium") or col.endswith("_Long") or col.endswith("_Many") or col.endswith("_Senior") or col.endswith("_Middle-aged")]
-predictorVariables.extend(new_binned_dummy_cols)
+new_binned_dummy_cols = [col for col in dataset.columns if
+                         col.endswith("_High") or col.endswith("_Medium") or col.endswith("_Long") or col.endswith(
+                             "_Many") or col.endswith("_Senior") or col.endswith("_Middle-aged")]
 
-
-# Update the predictorVariables list
-# predictorVariables.remove('AccountAge_Bin')
-# predictorVariables.remove('MonthlyCharges_Bin')
-# predictorVariables.remove('TotalCharges_Bin')
-# predictorVariables.remove('ViewingHoursPerWeek_Bin')
-# predictorVariables.remove('AverageViewingDuration_Bin')
-# predictorVariables.remove('ContentDownloadsPerMonth_Bin')
-# predictorVariables.remove('UserRating_Bin')
-
-predictorVariables.extend([
-    'AccountAge_Bin_Middle-aged', 'AccountAge_Bin_Senior',
-    'MonthlyCharges_Bin_High', 'TotalCharges_Bin_Medium', 'TotalCharges_Bin_High',
-    'ViewingHoursPerWeek_Bin_Medium', 'ViewingHoursPerWeek_Bin_High',
-    'AverageViewingDuration_Bin_Medium', 'AverageViewingDuration_Bin_Long',
-    'ContentDownloadsPerMonth_Bin_Many', 'UserRating_Bin_Medium', 'UserRating_Bin_High'
-])
-
-# ... [Rest of your code] ...
-
-
-# Print the new column names after get_dummies
-print("New column names after get_dummies:")
-print(dataset.columns)
-
-
-# Debugging print to check DataFrame after get_dummies
-print("DataFrame after get_dummies:")
-print(dataset.head())
+# Predictor Variables
+predictorVariables = [
+                         'AccountAge', 'MonthlyCharges', 'TotalCharges', 'ViewingHoursPerWeek',
+                         'AverageViewingDuration', 'ContentDownloadsPerMonth', 'UserRating',
+                         'SupportTicketsPerMonth', 'WatchlistSize', 'SubscriptionType_Premium',
+                         'SubscriptionType_Standard', 'PaymentMethod_Credit card',
+                         'PaymentMethod_Electronic check', 'PaymentMethod_Mailed check',
+                         'PaperlessBilling_Yes', 'ContentType_Movies', 'ContentType_TV Shows',
+                         'MultiDeviceAccess_Yes', 'DeviceRegistered_Mobile', 'DeviceRegistered_TV',
+                         'DeviceRegistered_Tablet', 'GenrePreference_Comedy', 'GenrePreference_Drama',
+                         'GenrePreference_Fantasy', 'GenrePreference_Sci-Fi', 'Gender_Male',
+                         'ParentalControl_Yes', 'SubtitlesEnabled_Yes'
+                     ] + new_binned_dummy_cols
 
 X = dataset[predictorVariables]
 y = dataset['Churn']
@@ -121,22 +121,23 @@ y = dataset['Churn']
 scaler = MinMaxScaler()
 X_scaled = scaler.fit_transform(X)
 
+# Feature Selection (Chi-Square, Best k) Here
+# k = best_k(X_scaled, y)
+# print(f"Best k value: {k}")
+k = 25
+selected_features = chi_squares(X, X_scaled, y, k)
+print(f"Selected features: {selected_features}")
+
 # Split the data into train and test sets
 X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.25, random_state=0)
 
-# LOGISTIC REGRESSION ==================================================================================================
-# Logistic Regression Model
+# LOGISTIC REGRESSION ================================================================================================
 logistic_model = LogisticRegression(solver='liblinear', random_state=0)
 
-# CROSS-VALIDATION WITH SMOTE ==========================================================================================
+# CROSS-VALIDATION WITH SMOTE ========================================================================================
 # Define cross-validation
 kf = StratifiedKFold(n_splits=5, shuffle=True, random_state=0)
-
-# Lists to store metrics for each fold
-accuracies = []
-precisions = []
-recalls = []
-f1_scores = []
+accuracies, precisions, recalls, f1_scores = [], [], [], []
 smote = SMOTE()
 
 # Cross-validation loop
@@ -160,7 +161,7 @@ for train_index, test_index in kf.split(X_scaled, y):
     recalls.append(recall_score(y_test_fold, y_pred_fold))
     f1_scores.append(f1_score(y_test_fold, y_pred_fold))
 
-# STATISTICS ACROSS ALL FOLDS ==========================================================================================
+# STATISTICS ACROSS ALL FOLDS ========================================================================================
 accuracies, precisions, recalls, f1_scores = map(np.array, [accuracies, precisions, recalls, f1_scores])
 
 print(f'Average accuracy across all folds: {accuracies.mean():.4f}')
@@ -172,7 +173,7 @@ print(f'Standard deviation of recall across all folds: {recalls.std():.4f}')
 print(f'Average F1 score across all folds: {f1_scores.mean():.4f}')
 print(f'Standard deviation of F1 score across all folds: {f1_scores.std():.4f}')
 
-# FINAL MODEL EVALUATION ===============================================================================================
+# FINAL MODEL EVALUATION =============================================================================================
 # Train final model on the entire training set with SMOTE
 X_train_resampled, y_train_resampled = smote.fit_resample(X_train, y_train)
 logistic_model.fit(X_train_resampled, y_train_resampled)
@@ -188,9 +189,3 @@ print(f'\nAccuracy: {accuracy_score(y_test, y_pred):.4f}')
 print(f'Precision: {precision_score(y_test, y_pred, zero_division=0):.4f}')
 print(f'Recall: {recall_score(y_test, y_pred, zero_division=0):.4f}')
 print(f'F1 Score: {f1_score(y_test, y_pred, zero_division=0):.4f}')
-
-# pd.set_option('display.max_columns', None)
-# # Increase number of columns that display on one line.
-# pd.set_option('display.width', 1000)
-# print(dataset.head())
-# print(dataset.describe(include='all'))
