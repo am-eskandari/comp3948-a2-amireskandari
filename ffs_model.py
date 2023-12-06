@@ -3,6 +3,7 @@ import pandas as pd
 from matplotlib import pyplot as plt
 from modules.best_k import best_k
 from modules.chi_squares import chi_squares
+from sklearn.feature_selection import f_regression
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split, StratifiedKFold
@@ -89,13 +90,22 @@ scaler = MinMaxScaler()
 X_scaled = scaler.fit_transform(X)
 
 # FEATURE SELECTION ====================================================================================================
-k = 25
-selected_features = chi_squares(X, X_scaled, y, k)
+# Calculate F-statistics and p-values
+ffs = f_regression(X_scaled, y)
 
-print(f"Selected features: {selected_features}")
+# Select features with a threshold for F-statistics, e.g., f_stats > 700
+selected_features = []
+for i in range(0, len(X.columns) - 1):
+    if ffs[0][i] >= 700:
+        selected_features.append(X.columns[i])
 
-# Split the data into train and test sets
-X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.25, random_state=0)
+print(f"Selected features using forward feature selection: {selected_features}")
+
+# Use only the selected features for training
+X_selected = X_scaled[:, [X.columns.get_loc(feature) for feature in selected_features]]
+
+# Split the data into train and test sets using only the selected features
+X_train, X_test, y_train, y_test = train_test_split(X_selected, y, test_size=0.25, random_state=0)
 
 # LOGISTIC REGRESSION ================================================================================================
 logistic_model = LogisticRegression(solver='liblinear', random_state=0)
