@@ -1,6 +1,8 @@
 import pandas as pd
-from modules.path import PATH, CSV_DATA
 from sklearn.impute import SimpleImputer
+
+from modules.path import PATH, CSV_DATA
+
 
 # from modules.chi_squares import chi_squares
 
