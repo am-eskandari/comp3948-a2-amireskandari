@@ -7,6 +7,7 @@ CSV_DATA = "CustomerChurn_Mystery.csv"
 
 dataset = pd.read_csv(PATH + CSV_DATA)
 
+
 # Apply median imputation for missing values in numeric columns
 dataset.fillna(dataset.median(numeric_only=True), inplace=True)
 
@@ -20,25 +21,28 @@ dataset = pd.concat([dataset, dummyDf], axis=1)
 
 # Clip 'TotalCharges' to the upper boundary and binning
 dataset['TotalCharges'] = dataset['TotalCharges'].clip(upper=2250)
-
-# Adjust binning
 bins = [0, 500, 1500, 2250]
-labels = ['TotalCharges_0_500', 'TotalCharges_500_1500', 'TotalCharges_1500_2250']
-dataset['TotalChargesBin'] = pd.cut(dataset['TotalCharges'], bins=bins, labels=labels, right=False)
+labels = ['TotalChargesBin_(0, 500]', 'TotalChargesBin_(500, 1500]', 'TotalChargesBin_(1500, 2250]']
+dataset['TotalChargesBin'] = pd.cut(dataset['TotalCharges'], bins=bins, labels=labels)
 additional_dummies = pd.get_dummies(dataset['TotalChargesBin'])
 dataset = pd.concat([dataset, additional_dummies], axis=1)
 
-# Adjusted predictorVariables
-predictorVariables = [
-    'AccountAge', 'MonthlyCharges', 'ViewingHoursPerWeek',
-    'AverageViewingDuration', 'ContentDownloadsPerMonth',
-    'UserRating', 'SupportTicketsPerMonth', 'WatchlistSize',
-    'SubscriptionType_Premium',  # Assuming this exists in the dummy variables
-    'PaymentMethod_Mailed check',  # Replace with actual PaymentMethod dummy variables
-    'GenrePreference_Comedy',      # Assuming this exists in the dummy variables
-    'GenrePreference_Fantasy',     # Replace with actual GenrePreference dummy variables
-    'TotalCharges_0_500', 'TotalCharges_500_1500', 'TotalCharges_1500_2250'
-]
+# Selecting the same predictor variables as in the training script
+predictorVariables = ['AccountAge',
+                      'MonthlyCharges',
+                      'ViewingHoursPerWeek',
+                      'AverageViewingDuration',
+                      'ContentDownloadsPerMonth',
+                      'UserRating',
+                      'SupportTicketsPerMonth',
+                      'WatchlistSize',
+                      'SubscriptionType_Premium',
+                      'SubscriptionType_Standard',
+                      'PaymentMethod_Credit card',
+                      'GenrePreference_Comedy',
+                      'GenrePreference_Sci-Fi',
+                      'TotalChargesBin_(0, 500]',
+                      'TotalChargesBin_(1500, 2250]']
 
 X = dataset[predictorVariables]
 
