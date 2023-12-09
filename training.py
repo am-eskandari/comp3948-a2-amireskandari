@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import pickle
 from imblearn.over_sampling import SMOTE
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
@@ -8,7 +9,6 @@ from sklearn.preprocessing import MinMaxScaler
 
 from modules.path import PATH, CSV_DATA
 
-# DATA PROCESSING ======================================================================================================
 # Reading the dataset
 dataset = pd.read_csv(PATH + CSV_DATA)
 
@@ -69,6 +69,9 @@ y = dataset['Churn']
 scaler = MinMaxScaler()
 X_scaled = scaler.fit_transform(X)
 
+# Save the scaler
+with open("scaler.pkl", "wb") as file:
+    pickle.dump(scaler, file)
 
 # Split the data into train and test sets using only the selected features
 X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.25, random_state=0)
@@ -117,10 +120,13 @@ print(f'Standard deviation of recall across all folds: {recalls.std():.4f}')
 print(f'Average F1 score across all folds: {f1_scores.mean():.4f}')
 print(f'Standard deviation of F1 score across all folds: {f1_scores.std():.4f}')
 
-# FINAL MODEL EVALUATION =============================================================================================
 # Train final model on the entire training set with SMOTE
-X, y = oversample.fit_resample(X_train, y_train)
-logistic_model.fit(X, y)
+X_resampled, y_resampled = oversample.fit_resample(X_train, y_train)
+logistic_model.fit(X_resampled, y_resampled)
+
+# Save the trained model
+with open("logistic_model.pkl", "wb") as file:
+    pickle.dump(logistic_model, file)
 
 # Evaluate on the test set
 y_pred = logistic_model.predict(X_test)
